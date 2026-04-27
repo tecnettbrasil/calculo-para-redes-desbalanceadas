@@ -1,1 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Tecnett - Projeto de Splittagem FTTH</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* =========================================================
+           VISUAL NA TELA (CELULAR E PC)
+           ========================================================= */
+        *, *::before, *::after { box-sizing: border-box; }
+        
+        body { background-color: #f1f5f9; font-family: 'Arial', sans-serif; }
+        
+        .table-container { 
+            width: 100%; overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y pinch-zoom;
+        }
+        
+        @media (min-width: 1024px) {
+            .sticky-col { position: sticky; left: 0; z-index: 10; }
+        }
 
+        .excel-table {
+            width: 100%; border-collapse: collapse; min-width: 1100px;
+        }
+        .excel-table th, .excel-table td {
+            border: 1px solid #94a3b8; 
+            padding: 4px; text-align: center; vertical-align: middle; font-size: 12px;
+        }
+        .excel-table th {
+            background-color: #1e3a8a; color: white; font-weight: bold;
+            text-transform: uppercase; padding: 10px 2px;
+        }
+        .excel-table .row-title {
+            background-color: #e2e8f0; color: #0f172a;
+            font-weight: bold; text-align: left; padding-left: 8px;
+        }
+        .excel-table .highlight-row { background-color: #f0fdf4; }
+
+        .input-tela {
+            width: 100%; border: 1px solid #cbd5e1; background-color: #ffffff;
+            border-radius: 4px; padding: 4px 1px; text-align: center;
+            font-weight: bold; color: #1e293b; font-size: 12px; cursor: pointer;
+        }
+        .input-tela:focus { border-color: #2563eb; outline: none; background-color: #eff6ff; }
+        
+        .texto-nome {
+            width: 100%; border: 1px dashed #cbd5e1; background-color: #ffffff;
+            padding: 8px 4px; font-size: 11px; font-weight: bold;
+            color: #0f172a; cursor: text; outline: none; margin: 0 auto;
+            transition: all 0.2s ease-in-out;
+        }
+        .texto-nome:focus { border: 1px dashed #2563eb; background-color: #eff6ff; }
+        .texto-nome:empty::before { content: attr(data-placeholder); color: #9ca3af; font-weight: normal; }
+
+        .orientacao-horizontal {
+            writing-mode: horizontal-tb; transform: none;
+            text-align: center; min-height: 30px; white-space: normal;
+        }
+        .orientacao-vertical {
+            writing-mode: vertical-rl; transform: rotate(180deg);
+            text-align: left; min-height: 80px; white-space: nowrap;
+        }
+
+        /* =========================================================
+           VISUAL NA IMPRESSÃO E PDF (TRAVA MATEMÁTICA ANTI-CORTE)
+           ========================================================= */
+        
+        .modo-impresso {
+            width: 1400px !important; /* Seguro para renderizar sem cortar */
+            max-width: 1400px !important;
+            padding: 10px !important; background: white !important; margin: 0 auto !important;
+        }
+        
+        .modo-impresso .excel-table, @media print .excel-table { 
+            width: 99% !important; /* Previne que as bordas estalem o limite da folha */
+            table-layout: fixed !important; 
+            border-collapse: collapse !important;
+            margin: 0 auto;
+        }
+
+        /* Coluna de Títulos = 12%. O navegador divide as 16 CTOs no espaço restante perfeitamente. */
+        .modo-impresso th:first-child, .modo-impresso td:first-child,
+        @media print th:first-child, @media print td:first-child { 
+            width: 12% !important; 
+        }
+
+        .modo-impresso th, .modo-impresso td, @media print th, @media print td {
+            border: 1px solid #000 !important; 
+            padding: 1px !important;
+            font-size: 8pt !important; /* Fonte ligeiramente menor garante que cabe tudo */
+            height: 38px !important; 
+            overflow: hidden !important; 
+            word-wrap: break-word !important;
+        }
+
+        .modo-impresso .input-tela, @media print .input-tela {
+            border: none !important; background: transparent !important;
+            appearance: none !important; -webkit-appearance: none !important;
+            color: black !important; padding: 0 !important; margin: 0 !important; 
+            font-size: 8pt !important; width: 100% !important; text-align: center;
+        }
+
+        .modo-impresso .texto-nome, @media print .texto-nome {
+            writing-mode: vertical-rl !important; transform: rotate(180deg) !important;
+            text-align: left !important; white-space: nowrap !important;
+            border: none !important; background: transparent !important;
+            color: black !important; padding: 0 !important; 
+            height: auto !important; min-height: 10px !important; font-size: 8pt !important;
+        }
+
+        .modo-impresso .texto-nome:empty::before, @media print .texto-nome:empty::before { content: "" !important; }
+        .modo-impresso .no-print, @media print .no-print { display: none !important; }
+        .modo-impresso .sticky-col, @media print .sticky-col { position: static !important; }
+        
+        @media print {
+            /* Margem muito reduzida na folha para garantir largura total */
+            @page { size: A4 landscape; margin: 5mm; } 
+            body { background: white; margin: 0; padding: 0; width: 100%; }
+            #projeto-conteudo { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; margin: 0; padding: 0; }
+            .print\:block { display: block !important; }
+            th { background-color: #1e3a8a !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .row-title { background-color: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 8pt !important; }
+            .highlight-row { background-color: #f0fdf4 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .table-container { overflow: visible !important; width: 100% !important; }
+        }
+    </style>
+</head>
+<body class="p-0 md:p-4">
+
+    <div id="projeto-conteudo" class="max-w-[1500px] mx-auto bg-white shadow-xl border border-gray-300">
+        
+        <div class="bg-blue-900 text-white p-3 flex flex-wrap items-center justify-between gap-4 border-b-4 border-blue-600">
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-black uppercase tracking-widest">TECNETT</h1>
+                <div class="hidden print:block text-sm font-bold uppercase ml-4" id="titulo-pdf-print">Projeto FTTH Rede Desbalançeada</div>
+            </div>
+
+            <div class="bg-blue-800 p-1.5 rounded flex items-center gap-2 border border-blue-500 shadow-inner no-print">
+                <label class="text-xs font-bold uppercase text-blue-100">Sinal OLT (dBm):</label>
+                <input type="number" id="olt-power" value="7.00" step="0.1" 
+                       class="w-16 text-black font-bold text-center rounded px-1 py-1 outline-none" 
+                       oninput="calcularRede()">
+            </div>
+
+            <div class="flex items-center gap-2 no-print">
+                <button onclick="limparProjeto()" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded font-bold text-sm shadow transition-colors">
+                    🗑️ Novo
+                </button>
+                <button id="btn-download" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded font-bold text-sm shadow transition-colors">
+                    📥 PDF
+                </button>
+                <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded font-bold text-sm shadow transition-colors">
+                    🖨️ Imprimir
+                </button>
+            </div>
+            
+            <div class="hidden print:block text-sm font-bold">
+                POTÊNCIA OLT: <span id="print-olt-val" class="text-lg">7.00</span> dBm
+            </div>
+        </div>
+
+        <div class="table-container p-1 md:p-3">
+            <table class="excel-table" id="tabela-calculo">
+                <thead>
+                    <tr id="header-ctos"></tr>
+                </thead>
+                <tbody id="corpo-tabela"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const perdasDesbal = {
+            "Ausente": {d: 0, t: 0}, "1:99": {d: 21.6, t: 0.3}, "2:98": {d: 18.7, t: 0.4}, 
+            "5:95": {d: 14.6, t: 0.5}, "10:90": {d: 11.0, t: 0.7}, "15:85": {d: 9.6, t: 1.0}, 
+            "20:80": {d: 7.9, t: 1.4}, "25:75": {d: 6.95, t: 1.7}, "30:70": {d: 6.0, t: 1.9}, 
+            "35:65": {d: 5.35, t: 2.3}, "40:60": {d: 4.7, t: 2.7}, "45:55": {d: 4.15, t: 3.15}, 
+            "50:50": {d: 3.7, t: 3.7}, "Simétrica": {d: 3.7, t: 3.7}
+        };
+
+        const perdasBal = { "Ausente": 0, "1:2": 3.7, "1:4": 7.1, "1:8": 10.5, "1:16": 13.7 };
+
+        const configOriginal = [
+            { d: "5:95", b: "1:8", l: 0.18, nome: "" }, { d: "5:95", b: "1:8", l: 0.25, nome: "" },
+            { d: "10:90", b: "1:8", l: 0.35, nome: "" }, { d: "10:90", b: "1:8", l: 0.20, nome: "" },
+            { d: "15:85", b: "1:8", l: 0.20, nome: "" }, { d: "15:85", b: "1:8", l: 0.20, nome: "" },
+            { d: "15:85", b: "1:8", l: 0.20, nome: "" }, { d: "20:80", b: "1:8", l: 0.20, nome: "" },
+            { d: "35:65", b: "1:8", l: 0.20, nome: "" }, { d: "50:50", b: "1:8", l: 0.20, nome: "" },
+            { d: "Ausente", b: "Ausente", l: 0.20, nome: "" }, { d: "25:75", b: "1:4", l: 0.20, nome: "" },
+            { d: "Ausente", b: "Ausente", l: 0.20, nome: "" }, { d: "Ausente", b: "Ausente", l: 0.20, nome: "" },
+            { d: "Ausente", b: "Ausente", l: 0.20, nome: "" }, { d: "Simétrica", b: "Ausente", l: 0.20, nome: "" }
+        ];
+
+        let dadosAtuais = [];
+
+        window.onload = function() {
+            const projetoSalvo = localStorage.getItem('tecnett_projeto_completo');
+            if (projetoSalvo) {
+                try {
+                    const dados = JSON.parse(projetoSalvo);
+                    document.getElementById('olt-power').value = dados.olt;
+                    dadosAtuais = dados.ctos;
+                } catch (e) {
+                    dadosAtuais = JSON.parse(JSON.stringify(configOriginal));
+                }
+            } else {
+                dadosAtuais = JSON.parse(JSON.stringify(configOriginal));
+            }
+            inicializar();
+        };
+
+        function processarOrientacao(id) {
+            let el = document.getElementById(id);
+            if (!el) return;
+            
+            let texto = el.innerText.trim();
+            let focado = (document.activeElement === el);
+
+            if (focado || texto === "") {
+                el.classList.add('orientacao-horizontal');
+                el.classList.remove('orientacao-vertical');
+            } else {
+                el.classList.add('orientacao-vertical');
+                el.classList.remove('orientacao-horizontal');
+            }
+        }
+
+        function inicializar() {
+            let header = `<th class="sticky-col">PARÂMETRO / CTO</th>`;
+            let rLance = `<tr><td class="sticky-col row-title">Lance (dB)</td>`;
+            let rDesbal = `<tr><td class="sticky-col row-title text-blue-900">Sp. Desbal (1x2)</td>`;
+            let rBal = `<tr><td class="sticky-col row-title text-blue-900">Sp. CTO (Atend)</td>`;
+            let rIn = `<tr><td class="sticky-col row-title text-gray-800">In CTO (dBm)</td>`;
+            let rCli = `<tr class="highlight-row"><td class="sticky-col row-title text-green-800">SINAL CLIENTE</td>`;
+            let rThru = `<tr><td class="sticky-col row-title text-orange-800">Thru (dBm)</td>`;
+            let rNome = `<tr><td class="sticky-col row-title" style="vertical-align: middle;">Localização</td>`; 
+
+            for(let i=1; i<=16; i++) {
+                let c = dadosAtuais[i-1];
+                let num = i.toString().padStart(2,'0');
+                
+                header += `<th>CTO ${num}</th>`;
+                rLance += `<td><input type="number" id="l_${i}" value="${c.l}" step="0.01" class="input-tela" oninput="calcularRede()"></td>`;
+                
+                let selD = `<select id="d_${i}" class="input-tela text-blue-800" onchange="calcularRede()">`;
+                for(let k in perdasDesbal) selD += `<option value="${k}" ${k==c.d?'selected':''}>${k}</option>`;
+                rDesbal += `<td>${selD}</select></td>`;
+
+                let selB = `<select id="b_${i}" class="input-tela text-blue-800" onchange="calcularRede()">`;
+                for(let k in perdasBal) selB += `<option value="${k}" ${k==c.b?'selected':''}>${k}</option>`;
+                rBal += `<td>${selB}</select></td>`;
+
+                rIn += `<td id="v_in_${i}" class="font-mono font-bold text-gray-700"></td>`;
+                rCli += `<td id="v_cli_${i}" class="font-bold text-[13px]"></td>`;
+                rThru += `<td id="v_thru_${i}" class="font-mono font-bold text-orange-700"></td>`;
+                
+                let nomeValor = c.nome ? c.nome : '';
+                let classeInicial = (nomeValor.trim() === "") ? 'orientacao-horizontal' : 'orientacao-vertical';
+                
+                rNome += `<td style="vertical-align: bottom; padding: 2px;">
+                            <div contenteditable="true" 
+                                 id="nome_${i}" 
+                                 class="texto-nome ${classeInicial}" 
+                                 data-placeholder="Local" 
+                                 onfocus="processarOrientacao('nome_${i}')"
+                                 onblur="processarOrientacao('nome_${i}'); salvarAutomaticamente();"
+                                 oninput="processarOrientacao('nome_${i}')"
+                                 onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${nomeValor}</div>
+                          </td>`;
+            }
+
+            document.getElementById('header-ctos').innerHTML = header;
+            document.getElementById('corpo-tabela').innerHTML = rLance + rDesbal + rBal + rIn + rCli + rThru + rNome;
+            
+            calcularRede();
+        }
+
+        function salvarAutomaticamente() {
+            const projetoParaSalvar = {
+                olt: document.getElementById('olt-power').value,
+                ctos: []
+            };
+            for (let i = 1; i <= 16; i++) {
+                projetoParaSalvar.ctos.push({
+                    l: document.getElementById(`l_${i}`).value,
+                    d: document.getElementById(`d_${i}`).value,
+                    b: document.getElementById(`b_${i}`).value,
+                    nome: document.getElementById(`nome_${i}`).innerText.trim()
+                });
+            }
+            localStorage.setItem('tecnett_projeto_completo', JSON.stringify(projetoParaSalvar));
+        }
+
+        function limparProjeto() {
+            if(confirm("Deseja apagar todos os dados e recomeçar a planilha?")) {
+                localStorage.removeItem('tecnett_projeto_completo'); 
+                document.getElementById('olt-power').value = "7.00"; 
+                dadosAtuais = JSON.parse(JSON.stringify(configOriginal)); 
+                inicializar(); 
+            }
+        }
+
+        function calcularRede() {
+            let valorOlt = document.getElementById('olt-power').value;
+            document.getElementById('print-olt-val').innerText = valorOlt;
+            
+            let p = parseFloat(valorOlt) || 0;
+            for(let i=1; i<=16; i++) {
+                let l = parseFloat(document.getElementById(`l_${i}`).value) || 0;
+                let d = document.getElementById(`d_${i}`).value;
+                let b = document.getElementById(`b_${i}`).value;
+
+                p -= l;
+                document.getElementById(`v_in_${i}`).innerText = p.toFixed(2);
+
+                let cellCli = document.getElementById(`v_cli_${i}`);
+                if(d === "Ausente") {
+                    cellCli.innerText = "-";
+                    cellCli.style.color = "#9ca3af";
+                    document.getElementById(`v_thru_${i}`).innerText = p.toFixed(2);
+                } else {
+                    let sD = perdasDesbal[d];
+                    let sB = perdasBal[b];
+                    let pDrop = p - sD.d;
+                    let pThru = p - sD.t;
+                    let pCli = pDrop - sB;
+
+                    document.getElementById(`v_thru_${i}`).innerText = pThru.toFixed(2);
+                    
+                    if(b === "Ausente") {
+                        cellCli.innerText = "-";
+                        cellCli.style.color = "#9ca3af";
+                    } else {
+                        cellCli.innerText = pCli.toFixed(2);
+                        if(pCli < -25) {
+                            cellCli.style.color = "#dc2626"; // Vermelho
+                        } else {
+                            cellCli.style.color = "#047857"; // Verde
+                        }
+                    }
+                    p = pThru;
+                }
+            }
+            salvarAutomaticamente();
+        }
+
+        // PDF GERADOR OTIMIZADO PARA NÃO CORTAR
+        document.getElementById('btn-download').addEventListener('click', function () {
+            const elemento = document.getElementById('projeto-conteudo');
+            
+            elemento.classList.add('modo-impresso');
+            document.getElementById('titulo-pdf-print').style.display = 'block';
+
+            const opcoes = {
+                margin:       [5, 5, 5, 5], // 5mm Top, Right, Bottom, Left. Segurança máxima contra cortes.
+                filename:     'Projeto_Tecnett_Engenharia.pdf',
+                image:        { type: 'jpeg', quality: 1.0 },
+                html2canvas:  { 
+                    scale: 2, 
+                    useCORS: true 
+                    // Removido o width fixo. O html2canvas vai adaptar-se à largura de 1400px que definimos no CSS acima
+                },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            
+            html2pdf().set(opcoes).from(elemento).save().then(() => {
+                elemento.classList.remove('modo-impresso');
+                document.getElementById('titulo-pdf-print').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>
